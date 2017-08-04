@@ -15,10 +15,11 @@ int main(int argc,char **argv){
 	signal(SIGTERM,handler);
 	signal(SIGPIPE,handler);
 
-	// cmd options
+	// figure out cmd options
 	config cfg;
 	cmdline(cfg,argc,argv);
 
+	// initialize the server
 	Servant servant(cfg.port);
 	if(!servant){
 		std::cout<<"error: could not bind to port "<<cfg.port<<std::endl;
@@ -30,6 +31,12 @@ int main(int argc,char **argv){
 		if(!drop_root(cfg.uid)){
 			return 1;
 		}
+	}
+
+	// chdir to <cfg.rootdir>
+	if(!working_dir(cfg.root)){
+		std::cout<<"error: could not find directory \""<<cfg.root<<"\""<<std::endl;
+		return 1;
 	}
 
 	while(running.load()){
@@ -95,6 +102,10 @@ bool drop_root(unsigned uid){
 	}
 
 	return true;
+}
+
+bool working_dir(const std::string &dir){
+	return chdir(dir.c_str())==0;
 }
 
 void handler(int sig){

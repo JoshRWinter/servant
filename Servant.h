@@ -11,6 +11,7 @@ void handler(int);
 void cmdline(config&,int,char**);
 void usage(const char*);
 bool drop_root(unsigned);
+bool working_dir(const std::string&);
 
 class Servant{
 public:
