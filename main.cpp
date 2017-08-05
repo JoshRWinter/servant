@@ -19,33 +19,36 @@ int main(int argc,char **argv){
 	config cfg;
 	cmdline(cfg,argc,argv);
 
-	// initialize the server
-	Servant servant(cfg.port);
-	if(!servant){
-		std::cout<<"error: could not bind to port "<<cfg.port<<std::endl;
-		return 1;
-	}
-
-	// drop root priviledges if requested
-	if(cfg.uid!=0){
-		if(!drop_root(cfg.uid)){
+	// new unnamed scope
+	{
+		// initialize the server
+		Servant servant(cfg.port);
+		if(!servant){
+			std::cout<<"error: could not bind to port "<<cfg.port<<std::endl;
 			return 1;
+		}
+
+		// drop root priviledges if requested
+		if(cfg.uid!=0){
+			if(!drop_root(cfg.uid)){
+				return 1;
+			}
+		}
+
+		// chdir to <cfg.rootdir>
+		if(!working_dir(cfg.root)){
+			std::cout<<"error: could not find directory \""<<cfg.root<<"\""<<std::endl;
+			return 1;
+		}
+
+		while(running.load()){
+			servant.accept();
+
+			usleep(100);
 		}
 	}
 
-	// chdir to <cfg.rootdir>
-	if(!working_dir(cfg.root)){
-		std::cout<<"error: could not find directory \""<<cfg.root<<"\""<<std::endl;
-		return 1;
-	}
-
-	while(running.load()){
-		servant.accept();
-
-		usleep(100);
-	}
-
-	std::cout<<"\nexiting..."<<std::endl;
+	std::cout<<"exiting..."<<std::endl;
 
 	return 0;
 }
@@ -112,6 +115,7 @@ void handler(int sig){
 	switch(sig){
 	case SIGINT:
 	case SIGTERM:
+		std::cout<<std::endl;
 		running.store(false);
 		break;
 	case SIGPIPE:

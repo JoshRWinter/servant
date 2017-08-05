@@ -1,7 +1,11 @@
 #ifndef SERVANT_H
 #define SERVANT_H
 
+#include <vector>
+#include <thread>
+
 #include "network.h"
+#include "Session.h"
 
 #define DEFAULT_PORT 80
 #define DEFAULT_ROOTDIR "./root"
@@ -19,11 +23,14 @@ public:
 	Servant(const Servant&)=delete;
 	Servant(Servant&&)=delete;
 	~Servant();
+	Servant &operator=(const Session&)=delete;
 	bool operator!()const;
 	void accept();
 
 private:
-	net::tcp_server sock;
+	std::vector<std::thread> sessions;
+	net::tcp_server scan;
+	static unsigned session_id;
 };
 
 struct config{
