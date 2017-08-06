@@ -6,9 +6,20 @@
 
 #include "network.h"
 #include "Session.h"
+#include "Resource.h"
 
+// config defaults
 #define DEFAULT_PORT 80
 #define DEFAULT_ROOTDIR "./root"
+#define DEFAULT_NAME "no one of consequence"
+
+// http errors
+#define HTTP_STATUS_OK 200
+#define HTTP_STATUS_BAD_REQUEST 400
+#define HTTP_STATUS_NOT_FOUND 404
+#define HTTP_STATUS_INTERNAL_ERROR 500
+#define HTTP_STATUS_NOT_IMPLEMENTED 501
+#define HTTP_STATUS_VERSION_NOT_SUPPORTED 505
 
 struct config;
 void handler(int);

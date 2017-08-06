@@ -9,7 +9,8 @@
 
 extern std::atomic<bool> running;
 
-Session::Session(int sockfd,unsigned id):sock(sockfd),sid(id),entry_time(time(NULL)){
+Session::Session(int sockfd,unsigned id):sock(sockfd),sid(id){
+	entry_time=time(NULL);
 }
 
 // the entry point for the session (and this thread)
@@ -19,34 +20,47 @@ void Session::entry(int sockfd,unsigned id){
 	// serve the client
 	try{
 		session.serve();
+	}catch(const SessionErrorNotFound &e){
+		// file not found
+		session.log(e.what());
+		session.send_error_not_found();
+	}catch(const SessionErrorMalformed &e){
+		// malformed http request
+		session.log(e.what());
+		session.send_error_generic(HTTP_STATUS_BAD_REQUEST);
+	}catch(const SessionErrorNotSupported &e){
+		// http operation not implemented
+		session.log(e.what());
+		session.send_error_generic(HTTP_STATUS_NOT_IMPLEMENTED);
+	}catch(const SessionErrorVersion &e){
+		// http version not supported
+		session.log(e.what());
+		session.send_error_generic(HTTP_STATUS_VERSION_NOT_SUPPORTED);
 	}catch(SessionError &se){
+		// generic catch-all
 		session.log(se.what());
 	}
+
+	session.log("session end");
 }
 
 void Session::serve(){
 	while(time(NULL)-entry_time<HTTP_KEEPALIVE){
-		std::string request;
 		// check if anything is on the socket
 		if(sock.peek()>0){
 			// get the http request
+			std::string request;
 			get_http_request(request);
-		}
 
-		// make sure valid request
-		if(request.length()>0){
-			try{
-				check_http_request(request);
-			}catch(const SessionErrorMalformed &e){
-				log(e.what());
-				send_error_malformed();
-			}catch(const SessionErrorNotSupported &e){
-				log(e.what());
-				send_error_not_supported();
-			}catch(const SessionErrorVersion &e){
-				log(e.what());
-				send_error_version();
-			}
+			// make sure it's valid
+			Session::check_http_request(request);
+
+			// get the requested resource name from the request header
+			std::string target;
+			Session::get_target_resource(request,target);
+
+			// initialize resource
+			throw SessionErrorNotFound(target);
 		}
 
 		// check for exit request
@@ -66,14 +80,17 @@ void Session::get_http_request(std::string &req){
 	bool end=false;
 	const int get_size=128; // try to recv how many characters at a time
 	while(!end){
+		// make sure HTTP_KEEPALIVE seconds hasn't elapsed yet
+		if(time(NULL)-entry_time>HTTP_KEEPALIVE)
+			throw SessionErrorClosed();
+
+		// receive a bit of the HTTP request
 		char block[get_size+1];
 		const int received=sock.recv_nonblock(block,get_size);
 
 		// check for socket error
-		if(sock.error()){
-			req=""; // reset
-			return;
-		}
+		if(sock.error())
+			throw SessionErrorClosed();
 
 		// check for exit request
 		if(!running.load())
@@ -85,9 +102,46 @@ void Session::get_http_request(std::string &req){
 		// end of http request is denoted by CRLFCRLF
 		end=req.find("\r\n\r\n")!=std::string::npos;
 	}
+
+	// reset the keepalive timeout
+	entry_time=time(NULL);
 }
 
-void Session::check_http_request(const std::string &request)const{
+// send a generic http response error (i.e. with no response body, just the header)
+void Session::send_error_generic(int code){
+	// construct response header
+	std::string header;
+	Session::construct_response_header(code,0,header);
+
+	// send
+	sock.send_block(header.c_str(),header.length());
+}
+
+// send the 404page.html, or a default
+void Session::send_error_not_found(){
+	const char *const notfound=
+		"<!Doctype html>\n"
+		"<html>\n"
+		"<head><title>404 Not Found</title></head>\n"
+		"<body>\n"
+		"<h2>The requested resource does not exist</h2>\n"
+		"</body>\n"
+		"</html>\n"
+	;
+	const int notfoundlen=strlen(notfound);
+
+	std::string header;
+	Session::construct_response_header(HTTP_STATUS_NOT_FOUND,notfoundlen,header);
+
+	sock.send_block(header.c_str(),header.length());
+	sock.send_block(notfound,notfoundlen);
+}
+
+void Session::log(const std::string &line)const{
+	std::cout<<sid<<" - '"<<sock.get_name()<<"' -- "<<line<<std::endl;
+}
+
+void Session::check_http_request(const std::string &request){
 	const int len=request.length();
 	// make sure there's enough room at least for "GET "
 	if(len<4)
@@ -108,30 +162,59 @@ void Session::check_http_request(const std::string &request)const{
 		throw SessionErrorVersion();
 }
 
-void Session::send_error_malformed(){
-	const char *const malformed=
-	"HTTP/1.1 400 Bad Request\r\n"
-	"Content-Length: 0\r\n\r\n";
+// given its parameters, construct the appropriate response header in <header>,
+void Session::construct_response_header(int code,int content_length,std::string &header){
+	char length_string[25];
+	sprintf(length_string,"%u",content_length);
 
-	sock.send_block(malformed,strlen(malformed));
+	std::string status;
+	get_status_code(code,status);
+
+	header=std::string("HTTP/1.1 ")+status+"\r\n"+
+	"Content-Length: "+length_string+"\r\n"+
+	"Server: "+DEFAULT_NAME+"\r\n\r\n";
 }
 
-void Session::send_error_not_supported(){
-	const char *const not_supported=
-	"HTTP/1.1 501 Not Implemented\r\n"
-	"Content-Length: 0\r\n\r\n";
-
-	sock.send_block(not_supported,strlen(not_supported));
+// fill in the status code (e.g. "200 OK")
+void Session::get_status_code(int code,std::string &status){
+	switch(code){
+	case HTTP_STATUS_OK:
+		status="200 OK";
+		break;
+	case HTTP_STATUS_BAD_REQUEST:
+		status="400 Bad Request";
+		break;
+	case HTTP_STATUS_NOT_FOUND:
+		status="404 Not Found";
+		break;
+	case HTTP_STATUS_NOT_IMPLEMENTED:
+		status="501 Not Implemented";
+		break;
+	case HTTP_STATUS_VERSION_NOT_SUPPORTED:
+		status="505 HTTP Version Not Supported";
+		break;
+	default:
+		status="500 Internal Server Error";
+		break;
+	}
 }
 
-void Session::send_error_version(){
-	const char *const version=
-	"HTTP/1.1 505 HTTP Version Not Supported\r\n"
-	"Content-Length: 0\r\n\r\n";
+// pick out the requested resource from <header> and put it in <target>
+void Session::get_target_resource(const std::string &header,std::string &target){
+	// find the first space in the header
+	const unsigned beginning=header.find(" ")+1;
+	if(beginning==std::string::npos)
+		return;
 
-	sock.send_block(version,strlen(version));
-}
+	// consistency check
+	if(beginning>=header.size()-1)
+		return;
 
-void Session::log(const std::string &line)const{
-	std::cout<<sid<<" - '"<<sock.get_name()<<"' -- "<<line<<std::endl;
+	// find the second space in the header
+	const unsigned end=header.find(" ",beginning);
+	if(end==std::string::npos)
+		return;
+
+	// get the bit in the middle
+	target=header.substr(beginning,end-beginning);
 }

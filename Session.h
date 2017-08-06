@@ -10,6 +10,12 @@ private:
 	const std::string desc;
 };
 
+// error reading HTTP request
+class SessionErrorClosed:public SessionError{
+public:
+	SessionErrorClosed():SessionError("error reading HTTP request"){}
+};
+
 // malformed http request
 class SessionErrorMalformed:public SessionError{
 public:
@@ -28,6 +34,13 @@ public:
 	SessionErrorVersion():SessionError("http version not supported"){}
 };
 
+// resource not found (404)
+class SessionErrorNotFound:public SessionError{
+public:
+	SessionErrorNotFound(const std::string &target)
+	:SessionError(std::string("resource: \"")+target+"\" not found"){}
+};
+
 #define HTTP_KEEPALIVE 10
 #define EXIT_REQUEST "session terminated: exit requested"
 
@@ -42,15 +55,17 @@ public:
 private:
 	void serve();
 	void get_http_request(std::string&);
-	void check_http_request(const std::string&)const;
-	void send_error_malformed();
-	void send_error_not_supported();
-	void send_error_version();
+	void send_error_generic(int);
+	void send_error_not_found();
 	void log(const std::string&)const;
+	static void check_http_request(const std::string&);
+	static void construct_response_header(int,int,std::string&);
+	static void get_status_code(int,std::string&);
+	static void get_target_resource(const std::string&,std::string&);
 
 	net::tcp sock;
 	const int sid; // session id
-	const int entry_time;
+	int entry_time;
 };
 
 #endif // SESSION_H
