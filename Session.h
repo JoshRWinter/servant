@@ -10,10 +10,16 @@ private:
 	const std::string desc;
 };
 
-// error reading HTTP request
+// need to exit
+class SessionErrorExit:public SessionError{
+public:
+	SessionErrorExit():SessionError("exit requested"){}
+};
+
+// network error
 class SessionErrorClosed:public SessionError{
 public:
-	SessionErrorClosed():SessionError("error reading HTTP request"){}
+	SessionErrorClosed():SessionError("connection error"){}
 };
 
 // malformed http request
@@ -34,6 +40,13 @@ public:
 	SessionErrorVersion():SessionError("http version not supported"){}
 };
 
+// internal error
+class SessionErrorInternal:public SessionError{
+public:
+	SessionErrorInternal(const std::string &target)
+	:SessionError(std::string("an internal error has occurred: ")+target){}
+};
+
 // resource not found (404)
 class SessionErrorNotFound:public SessionError{
 public:
@@ -41,8 +54,16 @@ public:
 	:SessionError(std::string("resource: \"")+target+"\" not found"){}
 };
 
+// resource forbidden (malformed, illegal chars, etc)
+class SessionErrorForbidden:public SessionError{
+public:
+	SessionErrorForbidden(const std::string &target)
+	:SessionError(std::string("resource: \"")+target+"\" forbidden"){}
+};
+
 #define HTTP_KEEPALIVE 10
-#define EXIT_REQUEST "session terminated: exit requested"
+
+class Resource;
 
 class Session{
 public:
@@ -55,11 +76,14 @@ public:
 private:
 	void serve();
 	void get_http_request(std::string&);
+	void send(const char*,unsigned);
+	int recv(char*,unsigned);
+	void send_file(Resource&);
 	void send_error_generic(int);
 	void send_error_not_found();
 	void log(const std::string&)const;
 	static void check_http_request(const std::string&);
-	static void construct_response_header(int,int,std::string&);
+	static void construct_response_header(int,int,const std::string&,std::string&);
 	static void get_status_code(int,std::string&);
 	static void get_target_resource(const std::string&,std::string&);
 

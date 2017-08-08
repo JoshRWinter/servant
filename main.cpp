@@ -1,7 +1,6 @@
 #include <iostream>
 #include <atomic>
 #include <unistd.h>
-#include <signal.h>
 
 #include "Servant.h"
 
@@ -10,10 +9,8 @@ std::atomic<bool> running;
 int main(int argc,char **argv){
 	running.store(true);
 
-	// signal handlers
-	signal(SIGINT,handler);
-	signal(SIGTERM,handler);
-	signal(SIGPIPE,handler);
+	// register signals
+	register_handlers();
 
 	// figure out cmd options
 	config cfg;
@@ -90,35 +87,4 @@ void usage(const char *name){
 	std::cout<<"- uid: if specified, servant will try to setuid() and setgid() to this value after binding to <port> (default=0"<<std::endl;
 
 	exit(EXIT_SUCCESS);
-}
-
-// try to setuid and setgid to config::uid
-bool drop_root(unsigned uid){
-	if(setgid(uid)){
-		std::cout<<"error: setgid("<<uid<<") errored (errno="<<errno<<")"<<std::endl;
-		return false;
-	}
-
-	if(setuid(uid)){
-		std::cout<<"error: setuid("<<uid<<") errored (errno="<<errno<<""<<std::endl;
-		return false;
-	}
-
-	return true;
-}
-
-bool working_dir(const std::string &dir){
-	return chdir(dir.c_str())==0;
-}
-
-void handler(int sig){
-	switch(sig){
-	case SIGINT:
-	case SIGTERM:
-		std::cout<<std::endl;
-		running.store(false);
-		break;
-	case SIGPIPE:
-		break;
-	}
 }

@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
+#include <ctype.h>
 #include <unistd.h>
 
 #include "Servant.h"
@@ -16,12 +17,17 @@ Session::Session(int sockfd,unsigned id):sock(sockfd),sid(id){
 // the entry point for the session (and this thread)
 void Session::entry(int sockfd,unsigned id){
 	Session session(sockfd,id);
+	session.log(std::string("session begin ")+session.sock.get_name());
 
 	// serve the client
 	try{
 		session.serve();
 	}catch(const SessionErrorNotFound &e){
 		// file not found
+		session.log(e.what());
+		session.send_error_not_found();
+	}catch(const SessionErrorForbidden &e){
+		// forbidden file, treat as 404
 		session.log(e.what());
 		session.send_error_not_found();
 	}catch(const SessionErrorMalformed &e){
@@ -36,6 +42,10 @@ void Session::entry(int sockfd,unsigned id){
 		// http version not supported
 		session.log(e.what());
 		session.send_error_generic(HTTP_STATUS_VERSION_NOT_SUPPORTED);
+	}catch(const SessionErrorInternal &e){
+		// internal server error
+		session.log(e.what());
+		session.send_error_generic(HTTP_STATUS_INTERNAL_ERROR);
 	}catch(SessionError &se){
 		// generic catch-all
 		session.log(se.what());
@@ -44,6 +54,8 @@ void Session::entry(int sockfd,unsigned id){
 	session.log("session end");
 }
 
+// loop and take http requests till the keepalive timer runs out
+// each request resets the timer
 void Session::serve(){
 	while(time(NULL)-entry_time<HTTP_KEEPALIVE){
 		// check if anything is on the socket
@@ -60,12 +72,16 @@ void Session::serve(){
 			Session::get_target_resource(request,target);
 
 			// initialize resource
-			throw SessionErrorNotFound(target);
+			Resource rc(target);
+			log(std::string("request resource \""+target+"\" (")+rc.type()+")");
+
+			// send the file
+			send_file(rc);
 		}
 
 		// check for exit request
 		if(!running.load())
-			throw SessionError(EXIT_REQUEST);
+			throw SessionErrorExit();
 
 		// check for error
 		if(sock.error())
@@ -86,7 +102,7 @@ void Session::get_http_request(std::string &req){
 
 		// receive a bit of the HTTP request
 		char block[get_size+1];
-		const int received=sock.recv_nonblock(block,get_size);
+		const int received=recv(block,get_size);
 
 		// check for socket error
 		if(sock.error())
@@ -94,7 +110,7 @@ void Session::get_http_request(std::string &req){
 
 		// check for exit request
 		if(!running.load())
-			throw SessionError(EXIT_REQUEST);
+			throw SessionErrorExit();
 
 		block[received]=0;
 		req+=block;
@@ -107,40 +123,91 @@ void Session::get_http_request(std::string &req){
 	entry_time=time(NULL);
 }
 
+// send a chunk of data
+void Session::send(const char *buf,unsigned size){
+	int sent=0;
+	while(sent!=size){
+		sent+=sock.send_nonblock(buf+sent,size-sent);
+
+		if(sock.error())
+			throw SessionErrorClosed();
+		if(!running.load())
+			throw SessionErrorExit();
+	}
+}
+
+int Session::recv(char *buf,unsigned size){
+	return sock.recv_nonblock(buf,size);
+}
+
+void Session::send_file(Resource &rc){
+	const int size=rc.size();
+
+	// construct and send the header
+	std::string header;
+	Session::construct_response_header(HTTP_STATUS_OK,size,rc.type(),header);
+	send(header.c_str(),header.length());
+
+	// send the body
+	int read=0; // bytes read from rc
+	const int block_size=4096;
+	while(read!=size){
+		// read a block
+		char block[block_size];
+		const int got=rc.get(block,block_size);
+		read+=got;
+
+		// send the block
+		send(block,got);
+
+		if(!running.load())
+			throw SessionErrorExit();
+	}
+
+	// convert bytes to string
+	char bytes_string[25];
+	sprintf(bytes_string,"%d",size);
+
+	log(std::string("sent ")+rc.name()+" ("+bytes_string+")");
+}
+
 // send a generic http response error (i.e. with no response body, just the header)
 void Session::send_error_generic(int code){
+	// get status code
+	std::string status;
+	Session::get_status_code(code,status);
+
+	// construct body
+	const std::string body=std::string("")+
+		"<!Doctype html>\n"
+		"<html>\n"
+		"<head><title>"+status+"</title></head>\n"
+		"<body>\n"
+		"<h2>"+status+"</h2>\n"
+		"</body>\n"
+		"</html>\n"
+	;
+
 	// construct response header
 	std::string header;
-	Session::construct_response_header(code,0,header);
+	Session::construct_response_header(code,body.length(),"text/html",header);
 
-	// send
-	sock.send_block(header.c_str(),header.length());
+	// send response header
+	send(header.c_str(),header.length());
+	// send body
+	send(body.c_str(),body.length());
 }
 
 // send the 404page.html, or a default
 void Session::send_error_not_found(){
-	const char *const notfound=
-		"<!Doctype html>\n"
-		"<html>\n"
-		"<head><title>404 Not Found</title></head>\n"
-		"<body>\n"
-		"<h2>The requested resource does not exist</h2>\n"
-		"</body>\n"
-		"</html>\n"
-	;
-	const int notfoundlen=strlen(notfound);
-
-	std::string header;
-	Session::construct_response_header(HTTP_STATUS_NOT_FOUND,notfoundlen,header);
-
-	sock.send_block(header.c_str(),header.length());
-	sock.send_block(notfound,notfoundlen);
+	send_error_generic(HTTP_STATUS_NOT_FOUND);
 }
 
 void Session::log(const std::string &line)const{
 	std::cout<<sid<<" - '"<<sock.get_name()<<"' -- "<<line<<std::endl;
 }
 
+// check http request for validity, throw appropriate exception
 void Session::check_http_request(const std::string &request){
 	const int len=request.length();
 	// make sure there's enough room at least for "GET "
@@ -163,7 +230,7 @@ void Session::check_http_request(const std::string &request){
 }
 
 // given its parameters, construct the appropriate response header in <header>,
-void Session::construct_response_header(int code,int content_length,std::string &header){
+void Session::construct_response_header(int code,int content_length,const std::string &type,std::string &header){
 	char length_string[25];
 	sprintf(length_string,"%u",content_length);
 
@@ -172,6 +239,7 @@ void Session::construct_response_header(int code,int content_length,std::string 
 
 	header=std::string("HTTP/1.1 ")+status+"\r\n"+
 	"Content-Length: "+length_string+"\r\n"+
+	"Content-Type: "+type+"\r\n"+
 	"Server: "+DEFAULT_NAME+"\r\n\r\n";
 }
 
@@ -193,6 +261,7 @@ void Session::get_status_code(int code,std::string &status){
 	case HTTP_STATUS_VERSION_NOT_SUPPORTED:
 		status="505 HTTP Version Not Supported";
 		break;
+	case HTTP_STATUS_INTERNAL_ERROR:
 	default:
 		status="500 Internal Server Error";
 		break;
@@ -217,4 +286,8 @@ void Session::get_target_resource(const std::string &header,std::string &target)
 
 	// get the bit in the middle
 	target=header.substr(beginning,end-beginning);
+
+	// to lower
+	for(int i=0;i<target.length();++i)
+		target[i]=tolower(target[i]);
 }

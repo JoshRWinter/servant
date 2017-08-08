@@ -4,8 +4,8 @@ REMOVE := rm
 CPPFLAGS := -std=c++11 -g
 LFLAGS := -pthread
 
-OBJECTS := main.o network.o Servant.o Session.o
-HEADERS := Servant.h Session.h
+OBJECTS := main.o os.o network.o Servant.o Session.o Resource.o
+HEADERS := Servant.h Session.h Resource.h
 
 servant: $(OBJECTS)
 	$(CPP) -o $@ $(OBJECTS) $(LFLAGS)
