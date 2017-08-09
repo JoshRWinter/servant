@@ -7,7 +7,6 @@
 
 #include <errno.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 #include <time.h>
 
@@ -258,9 +257,14 @@ int net::tcp::send_nonblock(const void *buffer,unsigned size){
 	set_blocking(false);
 
 	int sent=::send(sock,buffer,size,0);
-	if(sent==-1 && errno!=EWOULDBLOCK){
-		this->close(); // error
-		return 0;
+	if(sent==-1){
+		if(errno==EWOULDBLOCK){ // acceptable, will happen a lot
+			sent=0;
+		}
+		else{
+			this->close(); // error
+			return 0;
+		}
 	}
 
 	return sent;
@@ -274,9 +278,14 @@ int net::tcp::recv_nonblock(void *buffer,unsigned size){
 	set_blocking(false);
 
 	int received=::recv(sock,buffer,size,0);
-	if(received==-1 && errno!=EWOULDBLOCK){
-		this->close();
-		return 0;
+	if(received==-1){
+		if(errno==EWOULDBLOCK){ // acceptable, will happen a lot
+			received=0;
+		}
+		else{
+			this->close();
+			return 0;
+		}
 	}
 
 	return received;
