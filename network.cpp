@@ -51,9 +51,6 @@ void net::tcp_server::close(){
 // true on success
 // false on failure (most common cause for failure: someone else is already bound to <port>)
 bool net::tcp_server::bind(unsigned short port){
-	if(scan==-1)
-		return false;
-
 	sockaddr_in6 addr;
 	memset(&addr,0,sizeof(sockaddr_in6));
 	addr.sin6_family=AF_INET6;
