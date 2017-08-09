@@ -196,11 +196,26 @@ void Session::send_error_generic(int code){
 	send(header.c_str(),header.length());
 	// send body
 	send(body.c_str(),body.length());
+
+	// convert bytes to string
+	char bytes_string[25];
+	sprintf(bytes_string,"%d",body.length());
+	// convert code to string
+	char code_string[35];
+	sprintf(code_string,"%d",code);
+	log(std::string("sent generic ")+code_string+" page ("+bytes_string+")");
 }
 
 // send the 404page.html, or a default
 void Session::send_error_not_found(){
-	send_error_generic(HTTP_STATUS_NOT_FOUND);
+	// try to send "/404page.html"
+	try{
+		Resource rc("/404page.html");
+		send_file(rc);
+	}catch(const SessionErrorNotFound &e){
+		// no "/404page.html"
+		send_error_generic(HTTP_STATUS_NOT_FOUND);
+	}
 }
 
 void Session::log(const std::string &line)const{
