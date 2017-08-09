@@ -71,7 +71,7 @@ public:
 	Session(const Session&)=delete;
 	Session(Session&&)=delete;
 	Session &operator=(const Session&)=delete;
-	static void entry(int,unsigned);
+	static void entry(Servant*,int,unsigned);
 
 private:
 	void serve();

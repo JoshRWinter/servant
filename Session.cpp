@@ -9,13 +9,14 @@
 #include "Servant.h"
 
 extern std::atomic<bool> running;
+std::mutex stdout_lock; // locks the std::cout in Session::log
 
 Session::Session(int sockfd,unsigned id):sock(sockfd),sid(id){
 	entry_time=time(NULL);
 }
 
 // the entry point for the session (and this thread)
-void Session::entry(int sockfd,unsigned id){
+void Session::entry(Servant *parent,int sockfd,unsigned id){
 	Session session(sockfd,id);
 	session.log(std::string("session begin ")+session.sock.get_name());
 
@@ -51,6 +52,8 @@ void Session::entry(int sockfd,unsigned id){
 		session.log(se.what());
 	}
 
+	// let parent know it's done
+	parent->complete();
 	session.log("session end");
 }
 
@@ -219,6 +222,7 @@ void Session::send_error_not_found(){
 }
 
 void Session::log(const std::string &line)const{
+	std::lock_guard<std::mutex> lock(stdout_lock);
 	std::cout<<sid<<" - '"<<sock.get_name()<<"' -- "<<line<<std::endl;
 }
 

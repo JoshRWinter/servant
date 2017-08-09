@@ -3,7 +3,9 @@
 
 #include <vector>
 #include <thread>
+#include <mutex>
 
+class Servant;
 #include "network.h"
 #include "os.h"
 #include "Session.h"
@@ -35,11 +37,14 @@ public:
 	Servant &operator=(const Session&)=delete;
 	bool operator!()const;
 	void accept();
+	void complete();
 
 private:
 	std::vector<std::thread> sessions;
+	std::vector<std::thread::id> completed; // array of thread ids that have completed
 	net::tcp_server scan;
 	static unsigned session_id;
+	std::mutex mut; // used to protect Servant::completed
 };
 
 struct config{
