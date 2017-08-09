@@ -38,6 +38,9 @@ int main(int argc,char **argv){
 			return 1;
 		}
 
+		// print status line
+		std::cout<<"[document root: '"<<cfg.root<<"' -- port: '"<<cfg.port<<"' -- ready]"<<std::endl;
+
 		while(running.load()){
 			servant.accept();
 
