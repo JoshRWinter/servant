@@ -165,7 +165,7 @@ void Resource::html(std::string &stream){
 			const int len=rc.size();
 			int read=0;
 			while(read!=len){
-				const int get_size=1;
+				const int get_size=1024;
 				char block[get_size+1];
 
 				const int got=rc.get(block,get_size);
