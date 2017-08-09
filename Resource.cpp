@@ -1,4 +1,5 @@
 #include <string.h>
+#include <ctype.h>
 
 #include "Servant.h"
 
@@ -22,18 +23,10 @@ Resource::Resource(const std::string &target){
 	// checks for ../ tomfoolery, also checks if file exists
 	Resource::check_valid(fname);
 
-	// if it made it this far, <fname> must be safe
-	rsrc=std::move(std::ifstream(fname,std::ifstream::binary|std::ifstream::ate)); // opening at the end
-	if(!rsrc)
-		throw SessionErrorInternal(std::string("couldn't open \"")+fname+" in read mode");
-
-	// figure out length of file
-	fsize=rsrc.tellg();
-	// rewind
-	rsrc.seekg(0);
-
 	// figure out the content type
 	content_type=Resource::get_type(fname);
+
+	init_file();
 }
 
 // move constructor, leaves original unusable
@@ -50,8 +43,19 @@ const std::string &Resource::name()const{
 // retrieve a chunk of size <size>, advances the internal stream pointer
 // returns bytes read
 int Resource::get(char *buf,int size){
-	rsrc.read(buf,size);
-	return rsrc.gcount();
+	if(!strcmp(content_type,"text/html")){
+		const int max=html_file.length();
+		const int retrieve=std::min(max,size);
+		memcpy(buf,html_file.c_str(),retrieve);
+
+		// delete the chars just read from the string
+		html_file.erase(0,retrieve);
+		return retrieve;
+	}
+	else{
+		rsrc.read(buf,size);
+		return rsrc.gcount();
+	}
 }
 
 int Resource::size()const{
@@ -60,6 +64,122 @@ int Resource::size()const{
 
 const char *Resource::type()const{
 	return content_type;
+}
+
+void Resource::init_file(){
+	// html files are processed differently
+	if(!strcmp(content_type,"text/html")){
+		std::ifstream f(fname,std::ifstream::ate); // opening at the end
+		if(!f)
+			throw SessionErrorInternal(std::string("couldn't open \"")+fname+"\" ("+content_type+")");
+
+		// figure out length of file
+		const int len=f.tellg();
+		f.seekg(0);
+
+		// read file
+		int read=0;
+		while(read!=len){
+			const int get_size=4096;
+			char block[get_size+1];
+			f.read(block,get_size);
+			const int got=f.gcount();
+
+			read+=got;
+			block[got]=0;
+			html_file+=block;
+		}
+
+		// process string
+		// inserts server side includes
+		Resource::html(html_file);
+		fsize=html_file.length();
+	}
+	else{ // not an html file
+		// if it made it this far, <fname> must be safe
+		rsrc=std::move(std::ifstream(fname,std::ifstream::binary|std::ifstream::ate)); // opening at the end
+		if(!rsrc)
+			throw SessionErrorInternal(std::string("couldn't open \"")+fname+" in read mode");
+
+		// figure out length of file
+		fsize=rsrc.tellg();
+		// rewind
+		rsrc.seekg(0);
+	}
+}
+
+// fill in server side includes
+// example syntax: "####include.html"
+void Resource::html(std::string &stream){
+	int pos=-1;
+	while((pos=stream.find("####",pos+1))!=std::string::npos){
+		// make sure it's on a line of its own
+		// walk backwards to find a newline, ignoring whitespace
+		try{
+			char c=0;
+			bool giveup=false;
+			int current=pos-1;
+			while(c!='\n'&&current>=0){
+				c=stream.at(current);
+				if(!isspace(c)){
+					// includes need to be on there own line
+					giveup=true;
+					break;
+				}
+
+				--current;
+			}
+			if(giveup)
+				continue;
+		}catch(const std::out_of_range &e){
+			throw SessionErrorInternal("out_of_range error when processing include line");
+		}
+
+		// try to figure out the filename
+		std::string include_name;
+		try{
+			char c=0;
+			int current=pos+4; // skip the "####"
+			while(current<stream.length()&&!isspace(c=stream.at(current)))
+				++current;
+			include_name=stream.substr(pos+4,current-(pos+4));
+		}catch(const std::out_of_range &e){
+			throw SessionErrorInternal("out_of_range error when processing include line");
+		}
+
+		// delete the include from the stream
+		try{
+			stream.erase(pos,4+include_name.length());
+		}catch(const std::out_of_range &e){
+			throw SessionErrorInternal("out_of_range error when processing include line");
+		}
+
+		// make sure file is not a directory
+		if(is_directory(include_name))
+			throw SessionErrorInternal("error when including file: directories cannot be included");
+
+		// try to read file
+		std::string include_text;
+		try{
+			Resource rc(include_name);
+			const int len=rc.size();
+			int read=0;
+			while(read!=len){
+				const int get_size=1;
+				char block[get_size+1];
+
+				const int got=rc.get(block,get_size);
+				block[got]=0;
+				include_text+=block;
+				read+=got;
+			}
+		}catch(const SessionError &se){
+			throw SessionErrorInternal(std::string("error when including file: ")+se.what());
+		}
+
+		// insert the include text
+		stream.insert(pos,include_text);
+	}
 }
 
 // check input file

@@ -58,7 +58,7 @@ public:
 class SessionErrorForbidden:public SessionError{
 public:
 	SessionErrorForbidden(const std::string &target)
-	:SessionError(std::string("resource: \"")+target+"\" forbidden"){}
+	:SessionError(std::string("resource: \"")+target+"\" is forbidden"){}
 };
 
 #define HTTP_KEEPALIVE 10

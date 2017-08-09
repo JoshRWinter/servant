@@ -12,12 +12,15 @@ public:
 	const char *type()const;
 
 private:
+	void init_file();
+	static void html(std::string&);
 	static void check_valid(const std::string&);
 	static const char *get_type(const std::string&);
 	static void get_ext(const std::string&,std::string&);
 
 	int fsize;
 	std::string fname;
+	std::string html_file;
 	std::ifstream rsrc;
 	const char *content_type;
 };
