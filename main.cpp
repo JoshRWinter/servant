@@ -65,7 +65,7 @@ void cmdline(config &cfg,int argc,char **argv){
 	while((c=getopt(argc,argv,"p:r:u:h"))!=-1){
 		switch(c){
 		case 'p': // port (-p)
-			if(1!=sscanf(optarg,"%d",&cfg.port))
+			if(1!=sscanf(optarg,"%hu",&cfg.port))
 				usage(argv[0]);
 			break;
 		case 'r': // root dir (-r)
