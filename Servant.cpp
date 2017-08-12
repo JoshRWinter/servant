@@ -23,6 +23,17 @@ void Servant::accept(){
 
 	sessions.push_back(std::thread(Session::entry,this,sock,++Servant::session_id));
 
+	cleanup();
+}
+
+// called by Session::entry to notify Servant of completed session
+void Servant::complete(){
+	std::lock_guard<std::mutex> lock(mut);
+	completed.push_back(std::this_thread::get_id());
+}
+
+// cleanup completed sessions
+void Servant::cleanup(){
 	// get rid of completed threads
 	std::lock_guard<std::mutex> lock(mut);
 	for(std::vector<std::thread::id>::iterator it=completed.begin();it!=completed.end();){
@@ -44,10 +55,4 @@ void Servant::accept(){
 		// delete id from completed vector
 		it=completed.erase(it);
 	}
-}
-
-// called by Session::entry to notify Servant of completed session
-void Servant::complete(){
-	std::lock_guard<std::mutex> lock(mut);
-	completed.push_back(std::this_thread::get_id());
 }

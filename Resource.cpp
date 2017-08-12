@@ -66,6 +66,8 @@ const char *Resource::type()const{
 	return content_type;
 }
 
+// if the resource is html file, process it for server side includes
+// otherwise just open the stream
 void Resource::init_file(){
 	// html files are processed differently
 	if(!strcmp(content_type,"text/html")){
@@ -97,7 +99,7 @@ void Resource::init_file(){
 	}
 	else{ // not an html file
 		// if it made it this far, <fname> must be safe
-		rsrc=std::move(std::ifstream(fname,std::ifstream::binary|std::ifstream::ate)); // opening at the end
+		rsrc.open(fname,std::ifstream::binary|std::ifstream::ate); // opening at the end
 		if(!rsrc)
 			throw SessionErrorInternal(std::string("couldn't open \"")+fname+" in read mode");
 

@@ -9,7 +9,7 @@
 #include "Servant.h"
 
 extern std::atomic<bool> running;
-std::mutex stdout_lock; // locks the std::cout in Session::log
+static std::mutex stdout_lock; // locks the std::cout in Session::log
 
 Session::Session(int sockfd,unsigned id):sock(sockfd),sid(id){
 	entry_time=time(NULL);

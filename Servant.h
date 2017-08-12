@@ -40,6 +40,8 @@ public:
 	void complete();
 
 private:
+	void cleanup();
+
 	std::vector<std::thread> sessions;
 	std::vector<std::thread::id> completed; // array of thread ids that have completed
 	net::tcp_server scan;
