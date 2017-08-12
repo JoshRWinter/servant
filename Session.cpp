@@ -290,9 +290,10 @@ void Session::get_status_code(int code,std::string &status){
 // pick out the requested resource from <header> and put it in <target>
 void Session::get_target_resource(const std::string &header,std::string &target){
 	// find the first space in the header
-	const unsigned beginning=header.find(" ")+1;
+	unsigned beginning=header.find(" ");
 	if(beginning==std::string::npos)
 		return;
+	++beginning; // get past the space
 
 	// consistency check
 	if(beginning>=header.size()-1)
@@ -307,6 +308,6 @@ void Session::get_target_resource(const std::string &header,std::string &target)
 	target=header.substr(beginning,end-beginning);
 
 	// to lower
-	for(int i=0;i<target.length();++i)
-		target[i]=tolower(target[i]);
+	for(char &c:target)
+		c=tolower(c);
 }
