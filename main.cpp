@@ -6,6 +6,8 @@
 #include "Servant.h"
 #ifdef _WIN32
 #include "getopt.h"
+#else
+#include <getopt.h>
 #endif // _WIN32
 
 std::atomic<bool> running;

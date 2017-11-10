@@ -1,5 +1,6 @@
 // contains os specific functions, #ifdefs determine final implementation
 
+#include <iostream>
 #include <string>
 #include <atomic>
 #include <thread>
