@@ -2,8 +2,17 @@
 #define NETWORK_H
 
 #include <string>
+#ifdef _WIN32
+#undef _WIN32_WINNT
+#define _WIN32_WINNT 0x0501
+#include <windows.h>
+#include <winsock2.h>
+#include <Ws2tcpip.h>
+#include <sys/types.h>
+#else
 #include <netinet/in.h>
 #include <netdb.h>
+#endif // WIN32
 
 namespace net{
 
@@ -26,6 +35,7 @@ private:
 
 class tcp{
 public:
+	tcp();
 	tcp(const std::string&,unsigned short);
 	tcp(int);
 	tcp(const tcp&)=delete;
@@ -33,6 +43,7 @@ public:
 	~tcp();
 	tcp &operator=(const tcp&)=delete;
 	bool operator!()const;
+	operator bool()const;
 	bool target(const std::string &address,unsigned short);
 	bool connect();
 	bool connect(int);
@@ -40,7 +51,7 @@ public:
 	void recv_block(void*,unsigned);
 	int send_nonblock(const void*,unsigned);
 	int recv_nonblock(void*,unsigned);
-	int peek()const;
+	unsigned peek();
 	void close();
 	bool error()const;
 	const std::string &get_name()const;
@@ -59,9 +70,9 @@ private:
 struct udp_id{
 	udp_id():initialized(false),len(sizeof(sockaddr_storage)){}
 
+	bool initialized;
 	sockaddr_storage storage;
 	socklen_t len;
-	bool initialized;
 };
 
 class udp_server{
@@ -73,9 +84,9 @@ public:
 	udp_server &operator=(const udp_server&)=delete;
 	bool operator!()const;
 	void close();
-	void send(const void*,unsigned,const udp_id&);
-	void recv(void*,unsigned,udp_id&);
-	int peek()const;
+	void send(const void*,int,const udp_id&);
+	void recv(void*,int,udp_id&);
+	unsigned peek();
 	bool error()const;
 
 private:
@@ -95,7 +106,7 @@ public:
 	void close();
 	void send(const void*,unsigned);
 	void recv(void*,unsigned);
-	int peek()const;
+	unsigned peek();
 	bool error()const;
 
 private:
