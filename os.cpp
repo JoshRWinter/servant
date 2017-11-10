@@ -1,7 +1,6 @@
 // contains os specific functions, #ifdefs determine final implementation
 
 #include <string>
-#include <iostream>
 #include <atomic>
 #include <thread>
 #include <limits.h>
@@ -106,13 +105,16 @@ bool drop_root(unsigned uid){
 }
 
 // canonical path
+// return false if <target> doesn't exist
 std::mutex canon_path_lock;
 bool canonical_path(const std::string &target,std::string &canon){
 	std::lock_guard<std::mutex> lock(canon_path_lock);
 #ifdef _WIN32
+	if(GetFileAttributes(target.c_str())==INVALID_FILE_ATTRIBUTES)
+		return false;
+
 	char path[MAX_PATH]="";
 	bool result=GetFullPathName(target.c_str(), sizeof(path), path, NULL)!=0;
-
 	canon=path;
 	return result;
 #else
@@ -131,7 +133,7 @@ bool is_directory(const std::string &target){
 #ifdef _WIN32
 	DWORD attributes=GetFileAttributes(target.c_str());
 
-	return attributes==FILE_ATTRIBUTE_DIRECTORY;
+	return (attributes&FILE_ATTRIBUTE_DIRECTORY)==FILE_ATTRIBUTE_DIRECTORY;
 #else
 	struct stat s;
 	if(stat(target.c_str(),&s))

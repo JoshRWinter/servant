@@ -22,7 +22,7 @@ Resource::Resource(const std::string &target){
 
 	// append /index.html if fname is a direcory
 	if(is_directory(fname))
-		fname+=(fname[fname.length()-1]=='/')?"index.html":"/index.html";
+		fname+=(fname.at(fname.length()-1)=='/')?"index.html":"/index.html";
 
 	// checks for ../ tomfoolery, also checks if file exists
 	Resource::check_valid(fname);
@@ -105,7 +105,7 @@ void Resource::init_file(){
 		// if it made it this far, <fname> must be safe
 		rsrc.open(fname,std::ifstream::binary|std::ifstream::ate); // opening at the end
 		if(!rsrc)
-			throw SessionErrorInternal(std::string("couldn't open \"")+fname+" in read mode");
+			throw SessionErrorInternal(std::string("couldn't open \"")+fname+"\" in read mode");
 
 		// figure out length of file
 		fsize=rsrc.tellg();
