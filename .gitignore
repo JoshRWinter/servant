@@ -1,4 +1,7 @@
 *.o
+*.obj
+.*.swp
 servant
 test/test
+servant.exe
 

@@ -5,10 +5,10 @@
 #ifdef _WIN32
 #undef _WIN32_WINNT
 #define _WIN32_WINNT 0x0501
-#include <windows.h>
 #include <winsock2.h>
 #include <Ws2tcpip.h>
 #include <sys/types.h>
+#define ssize_t SSIZE_T
 #else
 #include <netinet/in.h>
 #include <netdb.h>

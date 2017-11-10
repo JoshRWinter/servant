@@ -1,7 +1,11 @@
 #include <string.h>
 #include <ctype.h>
+#include <algorithm>
 
 #include "Servant.h"
+
+#undef min
+#undef max
 
 Resource::Resource(const std::string &target){
 	fname=target;

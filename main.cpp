@@ -1,8 +1,12 @@
 #include <iostream>
 #include <atomic>
-#include <unistd.h>
+#include <thread>
+#include <chrono>
 
 #include "Servant.h"
+#ifdef _WIN32
+#include "getopt.h"
+#endif // _WIN32
 
 std::atomic<bool> running;
 
@@ -44,7 +48,7 @@ int main(int argc,char **argv){
 		while(running.load()){
 			servant.accept();
 
-			usleep(100);
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
 		}
 	}
 

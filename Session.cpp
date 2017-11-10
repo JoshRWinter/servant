@@ -4,7 +4,8 @@
 #include <time.h>
 #include <string.h>
 #include <ctype.h>
-#include <unistd.h>
+#include <thread>
+#include <chrono>
 
 #include "Servant.h"
 
@@ -91,7 +92,7 @@ void Session::serve(){
 			return;
 
 		// wait just a little bit
-		usleep(100);
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
 	}
 }
 
@@ -202,7 +203,7 @@ void Session::send_error_generic(int code){
 
 	// convert bytes to string
 	char bytes_string[25];
-	sprintf(bytes_string,"%d",body.length());
+	sprintf(bytes_string,"%lld",body.length());
 	// convert code to string
 	char code_string[35];
 	sprintf(code_string,"%d",code);
