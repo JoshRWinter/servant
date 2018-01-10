@@ -104,6 +104,8 @@ void Resource::init_file(){
 	else{ // not an html file
 		// figure out length of file
 		fsize=filesize(fname);
+		if(fsize == -1)
+			throw SessionErrorInternal("could not stat file \"" + fname + "\"");
 
 		// if it made it this far, <fname> must be safe
 		rsrc.open(fname,std::ifstream::binary); // opening at the end
