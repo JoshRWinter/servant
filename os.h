@@ -9,5 +9,6 @@ void register_handlers();
 bool drop_root(unsigned);
 bool canonical_path(const std::string&,std::string&);
 bool is_directory(const std::string&);
+long long filesize(const std::string&);
 
 #endif // OS_H

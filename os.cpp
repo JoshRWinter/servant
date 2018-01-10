@@ -143,3 +143,23 @@ bool is_directory(const std::string &target){
 	return S_ISDIR(s.st_mode);
 #endif // _WIN32
 }
+
+long long filesize(const std::string &fname){
+#ifdef _WIN32
+	HANDLE h = CreateFile(fname.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+	if(h == INVALID_HANDLE_VALUE)
+		return -1;
+
+	LARGE_INTEGER li;
+	GetFileSizeEx(h, &li);
+	CloseHandle(h);
+
+	return li.QuadPart;
+#else
+	struct stat s;
+	if(0 != stat(fname.c_str(), &stat))
+		return -1;
+	return s.st_size;
+#endif // _WIN32
+}

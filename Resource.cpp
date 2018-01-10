@@ -75,13 +75,13 @@ const char *Resource::type()const{
 void Resource::init_file(){
 	// html files are processed differently
 	if(!strcmp(content_type,"text/html")){
-		std::ifstream f(fname,std::ifstream::ate); // opening at the end
+		const int len = filesize(fname);
+		if(len == -1)
+			throw SessionErrorInternal("could not stat file \"" + fname + "\"");
+
+		std::ifstream f(fname, std::ifstream::binary); // opening at the end
 		if(!f)
 			throw SessionErrorInternal(std::string("couldn't open \"")+fname+"\" ("+content_type+")");
-
-		// figure out length of file
-		const int len=f.tellg();
-		f.seekg(0);
 
 		// read file
 		int read=0;
@@ -102,15 +102,13 @@ void Resource::init_file(){
 		fsize=html_file.length();
 	}
 	else{ // not an html file
+		// figure out length of file
+		fsize=filesize(fname);
+
 		// if it made it this far, <fname> must be safe
-		rsrc.open(fname,std::ifstream::binary|std::ifstream::ate); // opening at the end
+		rsrc.open(fname,std::ifstream::binary); // opening at the end
 		if(!rsrc)
 			throw SessionErrorInternal(std::string("couldn't open \"")+fname+"\" in read mode");
-
-		// figure out length of file
-		fsize=rsrc.tellg();
-		// rewind
-		rsrc.seekg(0);
 	}
 }
 
