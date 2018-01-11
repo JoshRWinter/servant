@@ -145,7 +145,7 @@ int Session::recv(char *buf,unsigned size){
 }
 
 void Session::send_file(Resource &rc){
-	const int size=rc.size();
+	const long long size=rc.size();
 
 	// construct and send the header
 	std::string header;
@@ -170,7 +170,7 @@ void Session::send_file(Resource &rc){
 
 	// convert bytes to string
 	char bytes_string[25];
-	sprintf(bytes_string,"%d",size);
+	sprintf(bytes_string,"%lld",size);
 
 	log(std::string("sent ")+rc.name()+" ("+bytes_string+")");
 }
@@ -250,9 +250,9 @@ void Session::check_http_request(const std::string &request){
 }
 
 // given its parameters, construct the appropriate response header in <header>,
-void Session::construct_response_header(int code,int content_length,const std::string &type,std::string &header){
+void Session::construct_response_header(int code,long long content_length,const std::string &type,std::string &header){
 	char length_string[25];
-	sprintf(length_string,"%u",content_length);
+	sprintf(length_string,"%lld",content_length);
 
 	std::string status;
 	get_status_code(code,status);

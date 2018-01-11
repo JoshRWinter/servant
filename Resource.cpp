@@ -62,7 +62,7 @@ int Resource::get(char *buf,int size){
 	}
 }
 
-int Resource::size()const{
+long long Resource::size()const{
 	return fsize;
 }
 

@@ -83,7 +83,7 @@ private:
 	void send_error_not_found();
 	void log(const std::string&)const;
 	static void check_http_request(const std::string&);
-	static void construct_response_header(int,int,const std::string&,std::string&);
+	static void construct_response_header(int,long long,const std::string&,std::string&);
 	static void get_status_code(int,std::string&);
 	static void get_target_resource(const std::string&,std::string&);
 

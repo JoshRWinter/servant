@@ -8,7 +8,7 @@ public:
 	Resource &operator=(const Resource&)=delete;
 	const std::string &name()const;
 	int get(char*,int);
-	int size()const;
+	long long size()const;
 	const char *type()const;
 
 private:
@@ -18,7 +18,7 @@ private:
 	static const char *get_type(const std::string&);
 	static void get_ext(const std::string&,std::string&);
 
-	int fsize;
+	long long fsize;
 	std::string fname;
 	std::string html_file;
 	std::ifstream rsrc;
