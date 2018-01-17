@@ -158,7 +158,7 @@ long long filesize(const std::string &fname){
 	return li.QuadPart;
 #else
 	struct stat s;
-	if(0 != stat(fname.c_str(), &stat))
+	if(0 != stat(fname.c_str(), &s))
 		return -1;
 	return s.st_size;
 #endif // _WIN32
