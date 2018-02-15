@@ -133,6 +133,8 @@ bool canonical_path(const std::string &target,std::string &canon){
 bool is_directory(const std::string &target){
 #ifdef _WIN32
 	DWORD attributes=GetFileAttributes(target.c_str());
+	if(attributes == INVALID_FILE_ATTRIBUTES)
+		return false;
 
 	return (attributes&FILE_ATTRIBUTE_DIRECTORY)==FILE_ATTRIBUTE_DIRECTORY;
 #else
