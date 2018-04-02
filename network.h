@@ -2,6 +2,7 @@
 #define NETWORK_H
 
 #include <string>
+#include <string.h>
 #ifdef _WIN32
 #undef _WIN32_WINNT
 #define _WIN32_WINNT 0x0501
@@ -16,20 +17,30 @@
 
 namespace net{
 
+	std::string me();
+
+#ifdef _WIN32
+	const int WOULDBLOCK = WSAEWOULDBLOCK;
+	const int CONNRESET = WSAECONNRESET;
+#else
+	const int WOULDBLOCK = EWOULDBLOCK;
+	const int CONNRESET = ECONNRESET;
+#endif // _WIN32
+
 // tcp
 class tcp_server{
 public:
+	tcp_server();
 	tcp_server(unsigned short);
 	tcp_server(const tcp_server&)=delete;
 	~tcp_server();
 	tcp_server &operator=(const tcp_server&)=delete;
-	bool operator!()const;
-	int accept();
+	operator bool()const;
+	bool bind(unsigned short);
+	int accept(int = 0);
 	void close();
 
 private:
-	bool bind(unsigned short);
-
 	int scan; // the socket for scanning
 };
 
@@ -42,7 +53,7 @@ public:
 	tcp(tcp&&);
 	~tcp();
 	tcp &operator=(const tcp&)=delete;
-	bool operator!()const;
+	tcp &operator=(tcp&&);
 	operator bool()const;
 	bool target(const std::string &address,unsigned short);
 	bool connect();
@@ -55,10 +66,12 @@ public:
 	void close();
 	bool error()const;
 	const std::string &get_name()const;
+	int release();
 
 private:
 	void set_blocking(bool);
 	void init();
+	bool writable();
 
 	int sock;
 	std::string name;
@@ -68,7 +81,9 @@ private:
 
 // udp
 struct udp_id{
-	udp_id():initialized(false),len(sizeof(sockaddr_storage)){}
+	udp_id():initialized(false),len(sizeof(sockaddr_storage)){
+		memset(&storage, 0, sizeof(storage));
+	}
 
 	bool initialized;
 	sockaddr_storage storage;
@@ -77,15 +92,16 @@ struct udp_id{
 
 class udp_server{
 public:
+	udp_server();
 	udp_server(unsigned short);
 	udp_server(const udp_server&)=delete;
 	udp_server(udp_server&&);
 	~udp_server();
 	udp_server &operator=(const udp_server&)=delete;
-	bool operator!()const;
+	operator bool()const;
 	void close();
 	void send(const void*,int,const udp_id&);
-	void recv(void*,int,udp_id&);
+	int recv(void*,int,udp_id&);
 	unsigned peek();
 	bool error()const;
 
@@ -97,21 +113,22 @@ private:
 
 class udp{
 public:
+	udp();
 	udp(const std::string&,unsigned short);
 	udp(const udp&)=delete;
 	udp(udp&&);
 	~udp();
 	udp &operator=(const udp&)=delete;
-	bool operator!()const;
+	udp &operator=(udp&&);
+	bool target(const std::string&,unsigned short);
+	operator bool()const;
 	void close();
 	void send(const void*,unsigned);
-	void recv(void*,unsigned);
+	int recv(void*,unsigned);
 	unsigned peek();
 	bool error()const;
 
 private:
-	bool target(const std::string&,unsigned short);
-
 	int sock;
 	addrinfo *ai;
 };

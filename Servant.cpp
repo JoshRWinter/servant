@@ -16,7 +16,7 @@ bool Servant::operator!()const{
 }
 
 void Servant::accept(){
-	int sock=scan.accept();
+	const int sock=scan.accept(1000);
 
 	if(sock==-1)
 		return;
